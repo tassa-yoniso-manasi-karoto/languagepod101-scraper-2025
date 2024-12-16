@@ -23,6 +23,8 @@ parser = argparse.ArgumentParser(description='Scrape full language courses by In
 parser.add_argument('-u', '--username', help='Username (email)')
 parser.add_argument('-p', '--password', help='Password for the course')
 parser.add_argument('--url', help='URL for the first lesson of the course')
+parser.add_argument('-r', '--resume', action='store_true', 
+                   help='Resume from the highest existing lesson number')
 
 args = parser.parse_args()
 
@@ -93,6 +95,13 @@ def get_existing_prefixes(directory):
         if match:
             prefixes.add(match.group(1))  # Add the number as a string (preserving leading zeros)
     return prefixes
+
+def get_highest_prefix(directory):
+    """Find the highest numeric prefix among existing files"""
+    prefixes = get_existing_prefixes(directory)
+    if not prefixes:
+        return 0
+    return max(int(prefix) for prefix in prefixes)
 
 def check_for_captcha(soup_or_element):
     """
@@ -354,15 +363,31 @@ def main():
     if lesson_urls is None or len(lesson_urls) == 0:
         print("No lesson URLs found.")
         return
+    
     prefix_digits = len(str(len(lesson_urls)))
-    # Process each lesson
+    
+    # Get starting index based on resume flag
     file_index = 1
+    if args.resume:
+        highest_prefix = get_highest_prefix("./")
+        if highest_prefix > 0:
+            file_index = highest_prefix + 1
+            print(f"Resuming from lesson {file_index}")
+    
+    # Process each lesson
     for lesson_url in lesson_urls:
         file_prefix = str(file_index).zfill(prefix_digits)
-        existing_prefixes = get_existing_prefixes("./")
         
+        # Skip until we reach the resume point
+        if args.resume and file_index <= highest_prefix:
+            print(f"Skipping lesson {file_prefix} (before resume point)")
+            file_index += 1
+            continue
+        
+        # Skip if files already exist
+        existing_prefixes = get_existing_prefixes("./")
         if file_prefix in existing_prefixes:
-            print(f"Skipping lesson with prefix {file_index} (already exists).")
+            print(f"Skipping lesson with prefix {file_prefix} (already exists).")
             file_index += 1
             continue
 
