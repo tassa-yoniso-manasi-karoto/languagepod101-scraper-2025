@@ -292,9 +292,9 @@ def extract_lesson_urls(session, course_url, source_url):
                     if lesson['url'].startswith('/lesson/'):
                         full_url = source_url + lesson['url']
                         lesson_urls.append(full_url)
-                        print("URL→" + full_url)
+                        #print("URL→" + full_url)
 
-        print('Lessons URLs successfully listed.')
+        print(f'Lessons URLs successfully listed. {len(lesson_urls)} URLs.')
         #if len(lesson_urls) == 0:
         #    print(course_source.text)
         return lesson_urls
@@ -366,23 +366,21 @@ def main():
     
     prefix_digits = len(str(len(lesson_urls)))
     
-    # Get starting index based on resume flag
     file_index = 1
+    starting_url_index = 0
+    
     if args.resume:
         highest_prefix = get_highest_prefix("./")
         if highest_prefix > 0:
             file_index = highest_prefix + 1
-            print(f"Resuming from lesson {file_index}")
+            starting_url_index = highest_prefix
+            # Skip URLs before the resume point
+            lesson_urls = lesson_urls[starting_url_index:]
+            print(f"Resuming from lesson {file_index}, skipped {starting_url_index} lessons before resume point")
     
     # Process each lesson
     for lesson_url in lesson_urls:
         file_prefix = str(file_index).zfill(prefix_digits)
-        
-        # Skip until we reach the resume point
-        if args.resume and file_index <= highest_prefix:
-            print(f"Skipping lesson {file_prefix} (before resume point)")
-            file_index += 1
-            continue
         
         # Skip if files already exist
         existing_prefixes = get_existing_prefixes("./")
@@ -393,7 +391,7 @@ def main():
 
         if process_lesson(session, lesson_url, file_index, SOURCE_URL, prefix_digits):
             file_index += 1
-            if file_index < len(lesson_urls):
+            if file_index < len(lesson_urls) + starting_url_index + 1:  # Adjust the comparison
                 wait = randint(110, 300)
                 print(f'Pausing {wait}s before scraping next lesson...\n')
                 time.sleep(wait)
